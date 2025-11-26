@@ -395,9 +395,8 @@
     </div>
 
     <script>
-        // 定義 A4 高解析度像素 (約 150dpi，用於 canvas 內部渲染，保持輸出清晰)
-        const A4_WIDTH = 1754; 
-        const A4_HEIGHT = 1240;
+        const A4_WIDTH = 3508; 
+        const A4_HEIGHT = 2480;
         
         const LS_KEY = 'certGen_styles_v1';
 
@@ -409,11 +408,11 @@
         let isLandscape = true;
 
         const defaultElements = {
-            comp: { x: 0.5, y: 0.3, size: 80, color: '#000000', label: '比賽名稱' },
-            cat: { x: 0.5, y: 0.4, size: 60, color: '#000000', label: '組別名稱' },
-            rank: { x: 0.5, y: 0.55, size: 150, color: '#ff0000', label: '名次' },
-            name: { x: 0.5, y: 0.7, size: 120, color: '#000000', label: '姓名' },
-            date: { x: 0.5, y: 0.85, size: 40, color: '#000000', label: '日期' }
+            comp: { x: 0.5, y: 0.3, size: 160, color: '#000000', label: '比賽名稱' },
+            cat: { x: 0.5, y: 0.4, size: 120, color: '#000000', label: '組別名稱' },
+            rank: { x: 0.5, y: 0.55, size: 300, color: '#ff0000', label: '名次' },
+            name: { x: 0.5, y: 0.7, size: 240, color: '#000000', label: '姓名' },
+            date: { x: 0.5, y: 0.85, size: 80, color: '#000000', label: '日期' }
         };
 
         let elements = JSON.parse(JSON.stringify(defaultElements));
@@ -639,7 +638,7 @@
                 return `<div class="style-row">
             <div class="style-label">${el.label}</div>
             <input type="color" class="color-swatch" value="${el.color}" onchange="updateStyle('${k}','color',this.value); this.style.backgroundColor=this.value;" style="background:${el.color}">
-            <input type="range" min="20" max="200" value="${el.size}" oninput="updateStyle('${k}','size',this.value)">
+            <input type="range" min="20" max="400" value="${el.size}" oninput="updateStyle('${k}','size',this.value)">
             
             <div class="coord-group">
                 <span class="coord-label">X</span>
