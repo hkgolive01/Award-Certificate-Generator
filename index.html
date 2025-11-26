@@ -1,0 +1,1080 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Award Certificate Generator (Fixed Ratio)</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script>pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --accent: #3498db;
+            --danger: #e74c3c;
+            --danger-light: #fdecea;
+            --success: #2ecc71;
+            --bg-light: #f4f6f7;
+            --panel-width: 600px;
+        }
+
+        * {
+            box-sizing: border-box
+        }
+
+        body {
+            margin: 0;
+            font-family: "Microsoft JhengHei", sans-serif;
+            display: flex;
+            height: 100vh;
+            background: var(--bg-light);
+            overflow: hidden; /* 防止捲軸干擾計算 */
+        }
+
+        .sidebar {
+            width: var(--panel-width);
+            background: #fff;
+            padding: 15px;
+            border-right: 1px solid #ddd;
+            overflow-y: auto;
+            flex-shrink: 0;
+            z-index: 10;
+        }
+
+        h3 {
+            margin: 10px 0 6px;
+            color: var(--primary);
+            font-size: 16px;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 6px
+        }
+
+        textarea {
+            width: 100%;
+            height: 100px;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            resize: vertical;
+            font-size: 13px
+        }
+
+        .btn-row {
+            display: flex;
+            gap: 6px;
+            margin-top: 6px
+        }
+
+        button {
+            cursor: pointer;
+            border: 0;
+            border-radius: 4px;
+            padding: 8px 12px;
+            background: var(--accent);
+            color: #fff;
+            font-size: 13px
+        }
+
+        button.outline {
+            background: transparent;
+            border: 1px solid var(--accent);
+            color: var(--accent)
+        }
+
+        button.small {
+            padding: 10px;
+            font-size: 14px;
+            margin-top: 8px;
+            width: 100%
+        }
+
+        button.active {
+            background: var(--accent);
+            color: #fff;
+            border: 1px solid rgba(0, 0, 0, 0.06);
+        }
+
+        .print-btn {
+            background: var(--success);
+            font-weight: 700;
+            padding: 12px;
+            margin-top: 12px
+        }
+
+        .table-container {
+            height: 300px;
+            overflow: auto;
+            border: 1px solid #eee;
+            margin-top: 6px
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px
+        }
+
+        th {
+            background: #f8f9fa;
+            position: sticky;
+            top: 0;
+            padding: 6px;
+            text-align: left;
+            z-index: 1
+        }
+
+        td {
+            padding: 6px;
+            border-bottom: 1px solid #eee
+        }
+
+        input[type=text] {
+            width: 100%;
+            border: 1px solid transparent;
+            padding: 4px
+        }
+
+        input[type=text]:focus {
+            border-color: var(--accent);
+            background: #fff
+        }
+
+        .orient-file-row {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-top: 6px
+        }
+
+        .orientation-toggle {
+            display: flex;
+            gap: 6px;
+        }
+
+        .orientation-btn {
+            padding: 8px 12px;
+            border-radius: 4px;
+            border: 1px solid #eee;
+            background: transparent;
+            color: var(--primary);
+            font-size: 13px
+        }
+
+        .file-drop {
+            margin-left: auto;
+            border: 2px dashed #bdc3c7;
+            padding: 10px 12px;
+            text-align: center;
+            border-radius: 6px;
+            cursor: pointer;
+            color: #7f8c8d;
+            min-width: 180px
+        }
+
+        /* Style Controls Layout */
+        .style-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+            padding-bottom: 4px;
+            border-bottom: 1px dashed #eee;
+        }
+
+        .style-label {
+            width: 70px;
+            font-weight: 700;
+            font-size: 13px;
+        }
+
+        input.color-swatch {
+            width: 32px;
+            height: 28px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+            padding: 0;
+            cursor: pointer;
+            -webkit-appearance: none;
+            appearance: none;
+        }
+        
+        input.color-swatch::-webkit-color-swatch-wrapper { padding: 0; }
+        input.color-swatch::-webkit-color-swatch { border: none; border-radius: 4px; }
+
+        input[type=range] {
+            width: 250px;
+        }
+        
+        .coord-group {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .coord-input {
+            width: 55px;
+            padding: 4px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            text-align: center;
+            font-size: 12px;
+        }
+        .coord-label {
+            font-size: 11px;
+            color: #888;
+        }
+
+        /* ===== 主容器佈局修正 ===== */
+        .main {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            background: #555;
+            /* 這裡很重要，確保容器本身佔滿剩餘空間，作為計算基準 */
+            width: 100%; 
+            height: 100%;
+            overflow: hidden; 
+        }
+
+        .canvas-wrapper {
+            /* 移除原本的尺寸限制，完全交給 JS 計算 */
+            background: #fff;
+            box-shadow: 0 0 30px rgba(0, 0, 0, 0.45);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+            width: auto;
+            height: auto;
+        }
+
+        canvas {
+            display: block;
+            border-radius: 0;
+            outline: 1px solid #ddd;
+            cursor: grab;
+            /* 強制移除 CSS 對 Canvas 尺寸的干擾 */
+            max-width: none !important;
+            max-height: none !important;
+            min-width: 0;
+        }
+
+        canvas:active {
+            cursor: grabbing
+        }
+
+        .nav-bar {
+            position: absolute;
+            bottom: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            color: #fff;
+            padding: 10px 18px;
+            border-radius: 30px;
+            display: flex;
+            align-items: center;
+            gap: 18px;
+            z-index: 20;
+        }
+
+        .nav-btn {
+            background: #fff;
+            color: #333;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700
+        }
+
+        .btn-download-sep {
+            background: var(--danger-light);
+            color: var(--danger);
+            border: 1px solid rgba(231, 76, 60, 0.15);
+        }
+        
+        .btn-reset {
+            color: var(--danger);
+            border-color: var(--danger);
+            width: 100%;
+            margin-top: 10px;
+            opacity: 0.8;
+        }
+        .btn-reset:hover {
+            opacity: 1;
+            background: var(--danger-light);
+        }
+
+        @media print {
+            body { background: #fff }
+            .sidebar, .nav-bar { display: none !important }
+            .canvas-wrapper { box-shadow: none; max-width: none; max-height: none }
+            canvas { display: none }
+            #print-image { display: block !important; width: 100%; height: 100%; object-fit: contain }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="sidebar">
+        <div class="control-group">
+            <h3>1. 資料輸入</h3>
+            <textarea id="rawInput" placeholder="第一行：比賽名稱&#10;第二行：組別&#10;第三行：日期&#10;接著每行一位選手"></textarea>
+        </div>
+
+        <div class="control-group">
+            <h3>2. 名單編輯</h3>
+            <div class="btn-row">
+                <button class="outline" id="selectAllBtn" onclick="batchSelect('all')">全選</button>
+                <button class="outline" id="selectNoneBtn" onclick="batchSelect('none')">全不選</button>
+                <button class="outline" id="top8Btn" onclick="batchSelect('top8')">選前 8 名</button>
+            </div>
+            <div class="table-container">
+                <table id="dataTable">
+                    <thead>
+                        <tr>
+                            <th width="10%">選</th>
+                            <th width="30%">名次</th>
+                            <th>姓名</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="control-group">
+            <h3>3. 背景 (A4)</h3>
+            <div class="orient-file-row">
+                <div class="orientation-toggle" role="tablist" aria-label="畫面方向">
+                    <button class="outline orientation-btn" data-orient="landscape" id="orientLandscape">橫向</button>
+                    <button class="outline orientation-btn" data-orient="portrait" id="orientPortrait">直向</button>
+                </div>
+
+                <div class="file-drop" id="dropZone" onclick="document.getElementById('bgInput').click()">
+                    📂 點擊或拖曳上傳 PDF 或 圖片
+                    <input id="bgInput" type="file" accept="image/*,application/pdf" style="display:none"
+                        onchange="handleFile(this.files[0])">
+                </div>
+            </div>
+        </div>
+
+        <div class="control-group">
+            <h3>4. 樣式（拖動位置 + 顏色/大小）</h3>
+            <div style="display:flex; font-size:12px; color:#888; margin-bottom:5px; padding-left:80px;">
+                <span style="width:40px">顏色</span>
+                <span style="width:90px">字體大小</span>
+                <span style="margin-left:10px">位置 X / Y</span>
+            </div>
+            <div id="styleControls"></div>
+            <button class="outline btn-reset" onclick="resetStylesToDefault()">↺ 恢復默認樣式設置</button>
+        </div>
+
+        <button class="small print-btn" onclick="printCurrentCertificate()">🖨️ 列印目前獎狀（開啟列印視窗）</button>
+        <button class="small" onclick="printAllCertificates()">🖨️ 列印全部獎狀（開啟列印視窗）</button>
+        <button class="small btn-download-sep" onclick="printAllCertificatesSeparatePDFs()"> 📥 列印全部獎狀（獨立
+            PDF，直接下載）</button>
+    </div>
+
+    <div class="main">
+        <div class="canvas-wrapper" id="canvasWrap">
+            <canvas id="certCanvas" tabindex="0" aria-label="證書預覽畫布"></canvas>
+            <img id="print-image" style="display:none" alt="print preview">
+        </div>
+        <div class="nav-bar">
+            <button class="nav-btn" onclick="nav(-1)">❮</button>
+            <span id="previewLabel">載入中...</span>
+            <button class="nav-btn" onclick="nav(1)">❯</button>
+        </div>
+    </div>
+
+    <script>
+        // 定義 A4 高解析度像素 (約 150dpi，用於 canvas 內部渲染，保持輸出清晰)
+        const A4_WIDTH = 1754; 
+        const A4_HEIGHT = 1240;
+        
+        const LS_KEY = 'certGen_styles_v1';
+
+        const canvas = document.getElementById('certCanvas');
+        const ctx = canvas.getContext('2d');
+        let parsedData = [];
+        let currentIndex = 0;
+        let bgImage = null;
+        let isLandscape = true;
+
+        const defaultElements = {
+            comp: { x: 0.5, y: 0.3, size: 80, color: '#000000', label: '比賽名稱' },
+            cat: { x: 0.5, y: 0.4, size: 60, color: '#000000', label: '組別名稱' },
+            rank: { x: 0.5, y: 0.55, size: 150, color: '#ff0000', label: '名次' },
+            name: { x: 0.5, y: 0.7, size: 120, color: '#000000', label: '姓名' },
+            date: { x: 0.5, y: 0.85, size: 40, color: '#000000', label: '日期' }
+        };
+
+        let elements = JSON.parse(JSON.stringify(defaultElements));
+        let hitRegions = {};
+        let selectedElement = null;
+        let isDragging = false, dragTarget = null;
+        let dragOffset = { x: 0, y: 0 };
+
+        /* 初始化 */
+        window.onload = () => {
+            loadStylesFromStorage();
+            renderStyleControls();
+            document.getElementById('rawInput').addEventListener('input', parseData);
+            
+            // 初始執行一次
+            initCanvas();
+            
+            // 使用 ResizeObserver 進行更強烈的尺寸監控，確保視窗變動時比例永遠正確
+            const mainContainer = document.querySelector('.main');
+            const observer = new ResizeObserver(() => {
+                initCanvas();
+            });
+            observer.observe(mainContainer);
+
+            parseData();
+
+            const dz = document.getElementById('dropZone');
+            dz.ondragover = e => { e.preventDefault(); dz.style.background = '#eafaf1'; };
+            dz.ondragleave = e => { e.preventDefault(); dz.style.background = ''; };
+            dz.ondrop = e => { e.preventDefault(); dz.style.background = ''; handleFile(e.dataTransfer.files[0]); };
+
+            window.addEventListener('keydown', (ev) => {
+                if (!selectedElement) return;
+                const stepPx = ev.shiftKey ? 10 : 2; 
+                let dx = 0, dy = 0;
+                if (ev.key === 'ArrowUp') dy = -stepPx;
+                else if (ev.key === 'ArrowDown') dy = stepPx;
+                else if (ev.key === 'ArrowLeft') dx = -stepPx;
+                else if (ev.key === 'ArrowRight') dx = stepPx;
+                else return;
+                ev.preventDefault();
+                elements[selectedElement].x = clamp01(elements[selectedElement].x + dx / canvas.width);
+                elements[selectedElement].y = clamp01(elements[selectedElement].y + dy / canvas.height);
+                drawPreview();
+                updateInputValues(selectedElement);
+                saveStylesToStorage();
+            });
+
+            document.querySelectorAll('.orientation-btn').forEach(b => {
+                b.addEventListener('click', () => {
+                    const v = b.getAttribute('data-orient');
+                    isLandscape = (v === 'landscape');
+                    document.querySelectorAll('.orientation-btn').forEach(x => x.classList.remove('active'));
+                    b.classList.add('active');
+                    initCanvas();
+                });
+            });
+            document.getElementById('orientLandscape').classList.add('active');
+            updateTop8ButtonState();
+        };
+
+        function initCanvas() {
+            const mainContainer = document.querySelector('.main');
+            if(!mainContainer) return;
+            
+            const rect = mainContainer.getBoundingClientRect();
+            const availW = rect.width;
+            const availH = rect.height;
+
+            const targetIntW = isLandscape ? A4_WIDTH : A4_HEIGHT;
+            const targetIntH = isLandscape ? A4_HEIGHT : A4_WIDTH;
+
+            if (canvas.width !== targetIntW || canvas.height !== targetIntH) {
+                canvas.width = targetIntW;
+                canvas.height = targetIntH;
+            }
+            canvas.style.touchAction = 'none';
+
+            let displayW, displayH;
+            const scaleFactor = 0.95;
+
+            if (isLandscape) {
+                const ratio = Math.min(availW / 2.97, availH / 2.10);
+                displayW = ratio * scaleFactor * 2.97;
+                displayH = ratio * scaleFactor * 2.10;
+            } else {
+                const ratio = Math.min(availW / 2.10, availH / 2.97);
+                displayW = ratio * scaleFactor * 2.10;
+                displayH = ratio * scaleFactor * 2.97; 
+            }
+
+            canvas.style.width = `${displayW}px`;
+            canvas.style.height = `${displayH}px`;
+            
+            const wrapper = document.getElementById('canvasWrap');
+            wrapper.style.width = 'auto';
+            wrapper.style.height = 'auto';
+
+            // 重繪內容
+            drawPreview();
+        }
+
+        /* ===== 保存與讀取功能 ===== */
+        function saveStylesToStorage() {
+            localStorage.setItem(LS_KEY, JSON.stringify(elements));
+        }
+
+        function loadStylesFromStorage() {
+            const saved = localStorage.getItem(LS_KEY);
+            if (saved) {
+                try {
+                    const parsed = JSON.parse(saved);
+                    Object.keys(defaultElements).forEach(key => {
+                        if (parsed[key]) elements[key] = parsed[key];
+                    });
+                } catch (e) {
+                    console.error("讀取樣式設定失敗", e);
+                }
+            }
+        }
+
+        function resetStylesToDefault() {
+            if (confirm("確定要將所有文字的顏色、大小和位置恢復成默認值嗎？")) {
+                elements = JSON.parse(JSON.stringify(defaultElements));
+                localStorage.removeItem(LS_KEY);
+                renderStyleControls();
+                drawPreview();
+            }
+        }
+
+        function parseData() {
+            const raw = document.getElementById('rawInput').value.trim();
+            const lines = raw.split('\n').map(s => s.trim()).filter(s => s);
+            if (lines.length < 4) {
+                parsedData = [];
+                renderTable();
+                drawPreview();
+                updateTop8ButtonState();
+                return;
+            }
+            const comp = lines[0], cat = lines[1], date = lines[2];
+            const players = lines.slice(3);
+            const ranks = ["冠軍", "亞軍", "季軍", "第四名", "第五名", "第六名", "第七名", "第八名"];
+            parsedData = players.map((name, i) => ({
+                comp, cat, date, name,
+                rank: i < 8 ? ranks[i] : "優異獎",
+                selected: i < 8
+            }));
+            renderTable();
+            currentIndex = 0;
+            drawPreview();
+            updateTop8ButtonState();
+        }
+
+        function renderTable() {
+            const tbody = document.querySelector('#dataTable tbody');
+            tbody.innerHTML = parsedData.map((d, i) => `
+        <tr>
+            <td><input type="checkbox" ${d.selected ? 'checked' : ''} onchange="toggleSelect(${i})"></td>
+            <td><input type="text" value="${escapeHtml(d.rank)}" oninput="updateField(${i}, 'rank', this.value)"></td>
+            <td><input type="text" value="${escapeHtml(d.name)}" oninput="updateField(${i}, 'name', this.value)"></td>
+        </tr>
+    `).join('');
+            updateTop8ButtonState();
+        }
+
+        function escapeHtml(s) { return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+        function batchSelect(type) { parsedData.forEach((d, i) => { if (type === 'all') d.selected = true; else if (type === 'none') d.selected = false; else if (type === 'top8') d.selected = (i < 8); }); const checkboxes = document.querySelectorAll('#dataTable input[type="checkbox"]'); checkboxes.forEach((c, i) => { c.checked = parsedData[i].selected; }); drawPreview(); updateTop8ButtonState(); }
+        function toggleSelect(i) { parsedData[i].selected = !parsedData[i].selected; drawPreview(); updateTop8ButtonState(); }
+        function updateField(i, k, v) { parsedData[i][k] = v; if (i === currentIndex) drawPreview(); updateTop8ButtonState(); }
+
+        function isExactlyTop8Selected() {
+            if (parsedData.length < 8) return false;
+            for (let i = 0; i < parsedData.length; i++) {
+                if (i < 8 && !parsedData[i].selected) return false;
+                if (i >= 8 && parsedData[i].selected) return false;
+            }
+            return true;
+        }
+
+        function updateTop8ButtonState() {
+            const btn = document.getElementById('top8Btn');
+            if (isExactlyTop8Selected()) btn.classList.add('active');
+            else btn.classList.remove('active');
+        }
+
+        function handleFile(file) {
+            if (!file) return;
+            if (file.type === 'application/pdf') {
+                const reader = new FileReader();
+                reader.onload = e => {
+                    const typed = new Uint8Array(e.target.result);
+                    pdfjsLib.getDocument(typed).promise.then(pdf => {
+                        pdf.getPage(1).then(page => {
+                            const viewport = page.getViewport({ scale: 2 });
+                            const hidden = document.createElement('canvas');
+                            hidden.width = viewport.width; hidden.height = viewport.height;
+                            page.render({ canvasContext: hidden.getContext('2d'), viewport }).promise.then(() => {
+                                const img = new Image();
+                                img.src = hidden.toDataURL();
+                                img.onload = () => { bgImage = img; drawPreview(); };
+                            });
+                        });
+                    }).catch(err => alert('PDF 讀取失敗: ' + err.message));
+                };
+                reader.readAsArrayBuffer(file);
+            } else {
+                const reader = new FileReader();
+                reader.onload = e => {
+                    const img = new Image();
+                    img.src = e.target.result;
+                    img.onload = () => { bgImage = img; drawPreview(); };
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        /* ===== 樣式控制區 ===== */
+        function renderStyleControls() {
+            const container = document.getElementById('styleControls');
+            container.innerHTML = Object.keys(elements).map(k => {
+                const el = elements[k];
+                return `<div class="style-row">
+            <div class="style-label">${el.label}</div>
+            <input type="color" class="color-swatch" value="${el.color}" onchange="updateStyle('${k}','color',this.value); this.style.backgroundColor=this.value;" style="background:${el.color}">
+            <input type="range" min="20" max="200" value="${el.size}" oninput="updateStyle('${k}','size',this.value)">
+            
+            <div class="coord-group">
+                <span class="coord-label">X</span>
+                <input type="number" step="0.01" min="0" max="1" class="coord-input" id="inp_x_${k}" value="${el.x.toFixed(3)}" oninput="updateStyle('${k}','x',this.value)">
+            </div>
+            <div class="coord-group">
+                <span class="coord-label">Y</span>
+                <input type="number" step="0.01" min="0" max="1" class="coord-input" id="inp_y_${k}" value="${el.y.toFixed(3)}" oninput="updateStyle('${k}','y',this.value)">
+            </div>
+        </div>`;
+            }).join('');
+        }
+
+        function updateStyle(k, p, v) { 
+            elements[k][p] = (p === 'size' || p === 'x' || p === 'y') ? Number(v) : v; 
+            drawPreview(); 
+            saveStylesToStorage(); 
+        }
+
+        function updateInputValues(k) {
+            if(!k) return;
+            const el = elements[k];
+            const inpX = document.getElementById(`inp_x_${k}`);
+            const inpY = document.getElementById(`inp_y_${k}`);
+            if(inpX) inpX.value = el.x.toFixed(3);
+            if(inpY) inpY.value = el.y.toFixed(3);
+        }
+
+        /* ===== 繪圖邏輯 ===== */
+        function drawItemToCtx(item, context, w, h, isPreview) {
+            context.clearRect(0, 0, w, h);
+            if (bgImage) {
+                try { context.drawImage(bgImage, 0, 0, w, h); } catch (e) { context.fillStyle = '#fff'; context.fillRect(0, 0, w, h); }
+            } else {
+                context.fillStyle = '#fff'; context.fillRect(0, 0, w, h);
+                context.strokeStyle = '#ccc'; context.lineWidth = Math.max(2, w * 0.003); context.strokeRect(0, 0, w, h);
+            }
+            if (!item) return;
+            context.textAlign = 'center'; context.textBaseline = 'middle';
+
+            if(isPreview) hitRegions = {};
+
+            Object.keys(elements).forEach(k => {
+                const cfg = elements[k];
+                let text = item[k] || '';
+                if (k === 'comp' || k === 'cat') text = String(text).split('\n')[0];
+
+                context.fillStyle = cfg.color;
+                let fontSize = cfg.size;
+                context.font = `bold ${fontSize}px "Microsoft JhengHei", sans-serif`;
+                
+                const maxWidth = Math.floor(w * 0.88);
+                let metrics = context.measureText(text);
+                while (metrics.width > maxWidth && fontSize > 16) {
+                    fontSize = Math.floor(fontSize * 0.92);
+                    context.font = `bold ${fontSize}px "Microsoft JhengHei", sans-serif`;
+                    metrics = context.measureText(text);
+                }
+
+                const x = cfg.x * w, y = cfg.y * h;
+                const lines = (k === 'comp' || k === 'cat') ? [text] : String(item[k] || '').split('\n');
+                
+                const lh = fontSize * 1.1; 
+                const totalTextHeight = lines.length * lh;
+                let maxLineWidth = 0;
+                lines.forEach(ln => {
+                    const m = context.measureText(ln);
+                    if (m.width > maxLineWidth) maxLineWidth = m.width;
+                });
+
+                const paddingX = fontSize * 0.5; 
+                const paddingY = fontSize * 0.4;
+                const rectW = maxLineWidth + paddingX * 2;
+                const rectH = totalTextHeight + paddingY; 
+                
+                const rectX = x - rectW / 2;
+                const finalRectY = y - rectH / 2;
+
+                if(isPreview) {
+                    hitRegions[k] = { x: rectX, y: finalRectY, w: rectW, h: rectH };
+                }
+
+                const startY = y - (lines.length - 1) / 2 * lh;
+                lines.forEach((ln, i) => context.fillText(ln, x, startY + i * lh));
+
+                if (selectedElement === k) {
+                    context.save();
+                    context.fillStyle = 'rgba(52,152,219,0.15)'; 
+                    context.strokeStyle = 'rgba(52,152,219,0.8)';
+                    context.lineWidth = Math.max(2, fontSize * 0.05);
+                    roundRect(context, rectX, finalRectY, rectW, rectH, Math.max(4, fontSize * 0.08), true, true);
+                    context.restore();
+                }
+            });
+        }
+
+        function roundRect(ctx, x, y, w, h, r, fill, stroke) {
+            if (typeof r === 'undefined') r = 5;
+            if (typeof r === 'number') r = { tl: r, tr: r, br: r, bl: r };
+            ctx.beginPath();
+            ctx.moveTo(x + r.tl, y);
+            ctx.lineTo(x + w - r.tr, y);
+            ctx.quadraticCurveTo(x + w, y, x + w, y + r.tr);
+            ctx.lineTo(x + w, y + h - r.br);
+            ctx.quadraticCurveTo(x + w, y + h, x + w - r.br, y + h);
+            ctx.lineTo(x + r.bl, y + h);
+            ctx.quadraticCurveTo(x, y + h, x, y + h - r.bl);
+            ctx.lineTo(x, y + r.tl);
+            ctx.quadraticCurveTo(x, y, x + r.tl, y);
+            ctx.closePath();
+            if (fill) ctx.fill();
+            if (stroke) ctx.stroke();
+        }
+
+        function drawPreview() {
+            if (!parsedData[currentIndex]) {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                if (bgImage) ctx.drawImage(bgImage, 0, 0, canvas.width, canvas.height);
+                else { ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, canvas.width, canvas.height); ctx.strokeStyle = '#ccc'; ctx.lineWidth = 10; ctx.strokeRect(0, 0, canvas.width, canvas.height); }
+                updateNavDisplay();
+                return;
+            }
+            const item = parsedData[currentIndex];
+            drawItemToCtx(item, ctx, canvas.width, canvas.height, true);
+            updateNavDisplay();
+        }
+
+        /* ===== 互動邏輯 ===== */
+        canvas.addEventListener('mousedown', startDrag);
+        canvas.addEventListener('touchstart', startDrag, { passive: false });
+        canvas.addEventListener('click', onCanvasClick);
+        canvas.addEventListener('mousemove', onCanvasMove);
+        canvas.addEventListener('touchmove', drag, { passive: false });
+        window.addEventListener('mousemove', drag);
+        window.addEventListener('mouseup', endDrag);
+        window.addEventListener('touchend', endDrag);
+
+        function checkHit(px, py) {
+            // 滑鼠座標 (Display Size) 轉 內部座標 (Internal Size)
+            const scaleX = canvas.width / parseFloat(canvas.style.width);
+            const scaleY = canvas.height / parseFloat(canvas.style.height);
+            
+            const internalX = px * scaleX;
+            const internalY = py * scaleY;
+
+            for (let k in hitRegions) {
+                const r = hitRegions[k];
+                if (internalX >= r.x && internalX <= r.x + r.w && internalY >= r.y && internalY <= r.y + r.h) {
+                    return k;
+                }
+            }
+            return null;
+        }
+
+        function startDrag(e) {
+            e.preventDefault();
+            const pos = getPos(e); 
+            const hitKey = checkHit(pos.x, pos.y);
+
+            if (hitKey) {
+                selectedElement = hitKey;
+                isDragging = true;
+                dragTarget = hitKey;
+                
+                const el = elements[hitKey];
+                const scaleX = canvas.width / parseFloat(canvas.style.width);
+                const scaleY = canvas.height / parseFloat(canvas.style.height);
+                
+                const cx = el.x * canvas.width;
+                const cy = el.y * canvas.height;
+                
+                const mx = pos.x * scaleX;
+                const my = pos.y * scaleY;
+
+                dragOffset.x = mx - cx;
+                dragOffset.y = my - cy;
+
+                canvas.style.cursor = 'grabbing';
+                drawPreview();
+                updateInputValues(hitKey);
+            } else {
+                selectedElement = null;
+                drawPreview();
+            }
+        }
+
+        function drag(e) {
+            if (!isDragging || !dragTarget) return;
+            e.preventDefault();
+            const pos = getPos(e);
+            
+            const scaleX = canvas.width / parseFloat(canvas.style.width);
+            const scaleY = canvas.height / parseFloat(canvas.style.height);
+
+            const mx = pos.x * scaleX;
+            const my = pos.y * scaleY;
+
+            let newX = mx - dragOffset.x;
+            let newY = my - dragOffset.y;
+
+            elements[dragTarget].x = clamp01(newX / canvas.width);
+            elements[dragTarget].y = clamp01(newY / canvas.height);
+            
+            drawPreview();
+            updateInputValues(dragTarget);
+        }
+
+        function endDrag() {
+            if (isDragging) {
+                isDragging = false;
+                dragTarget = null;
+                canvas.style.cursor = 'grab';
+                saveStylesToStorage();
+            }
+        }
+
+        function onCanvasClick(e) {
+            const pos = getPos(e);
+            const hitKey = checkHit(pos.x, pos.y);
+            if (hitKey) selectedElement = hitKey;
+            else selectedElement = null;
+            drawPreview();
+        }
+
+        function onCanvasMove(e) {
+            const pos = getPos(e);
+            const hitKey = checkHit(pos.x, pos.y);
+            if (!isDragging) canvas.style.cursor = hitKey ? 'pointer' : 'grab';
+        }
+
+        function getPos(e) {
+            const rect = canvas.getBoundingClientRect();
+            const clientX = e.touches ? e.touches[0].clientX : (e.clientX || 0);
+            const clientY = e.touches ? e.touches[0].clientY : (e.clientY || 0);
+            return { x: clientX - rect.left, y: clientY - rect.top };
+        }
+
+        function clamp01(v) { return Math.max(0, Math.min(1, v)); }
+
+        /* ===== 導覽 & 輸出 ===== */
+        function nav(dir) {
+            if (!parsedData.length) return;
+            const len = parsedData.length;
+            let cnt = 0;
+            do {
+                currentIndex = (currentIndex + dir + len) % len;
+                cnt++;
+            } while (!parsedData[currentIndex].selected && cnt < len);
+            drawPreview();
+        }
+        function updateNavDisplay() {
+            if (!parsedData[currentIndex]) { document.getElementById('previewLabel').innerText = '（無資料）'; return; }
+            const d = parsedData[currentIndex];
+            document.getElementById('previewLabel').innerText = `${currentIndex + 1}. ${d.name} (${d.rank}) ${d.selected ? '' : '[未選]'}`;
+        }
+
+        function sanitizeFilename(s) { return (s || '').replace(/[\/\\?%*:|"<>]/g, '_').replace(/\s+/g, ' ').trim(); }
+
+        function renderItemToDataURL(item) {
+            const tmp = document.createElement('canvas');
+            tmp.width = canvas.width; tmp.height = canvas.height;
+            const tctx = tmp.getContext('2d');
+            drawItemToCtx(item, tctx, tmp.width, tmp.height, false);
+            return tmp.toDataURL('image/png', 0.9);
+        }
+
+        async function printCurrentCertificate() {
+            if (!parsedData[currentIndex]) { alert('無資料可列印'); return; }
+
+            const item = parsedData[currentIndex];
+            const filenameBase = sanitizeFilename(`${item.comp} ${item.cat} ${item.rank} ${item.name}`);
+            const imgData = renderItemToDataURL(item);
+            const w = window.open('', '_blank');
+            if (!w) { alert('無法開新分頁—請允許彈跳視窗'); return; }
+
+            w.document.title = filenameBase;
+
+            const style = `
+                <style>
+                    html, body { margin: 0; padding: 0; background: #555; height: 100%; display: flex; justify-content: center; align-items: center; }
+                    img { 
+                        display: block; 
+                        max-width: 100%; 
+                        max-height: 100vh; 
+                        box-shadow: 0 0 20px rgba(0,0,0,0.5); 
+                        background: white;
+                    }
+                    @media print {
+                        body { background: white; display: block; }
+                        img { 
+                            width: 100%; 
+                            height: 100vh; 
+                            object-fit: contain; 
+                            box-shadow: none; 
+                        }
+                    }
+                </style>
+            `;
+
+            w.document.write('<!doctype html><html><head>' + style + '</head><body>');
+            w.document.write('<img id="certImg" src="' + imgData + '">');
+            w.document.write('</body></html>');
+            w.document.close();
+
+            const img = w.document.getElementById('certImg');
+            if (img.complete) {
+                setTimeout(() => { w.focus(); w.print(); }, 200);
+            } else {
+                img.onload = () => { setTimeout(() => { w.focus(); w.print(); }, 200); };
+            }
+        }
+
+        async function printAllCertificates() {
+            const selected = parsedData.filter(d => d.selected);
+            if (!selected.length) { alert('沒有選中的名單'); return; }
+
+            const btn = document.querySelector('button[onclick="printAllCertificates()"]');
+            const originalText = btn.innerText;
+            btn.innerText = "生成預覽中...";
+            btn.disabled = true;
+
+            try {
+                const imgPromises = selected.map(async item => await renderItemToDataURL(item));
+                const imgs = await Promise.all(imgPromises);
+
+                const w = window.open('', '_blank');
+                if (!w) { alert('無法開新分頁—請允許彈跳視窗'); return; }
+                const filename = sanitizeFilename(`${selected[0].comp} ${selected[0].cat} 全部獎狀`);
+                w.document.title = filename;
+
+                const style = `
+                    <style>
+                        html, body { margin: 0; padding: 0; background: #555; }
+                        .page-break { 
+                            display: flex; 
+                            justify-content: center; 
+                            align-items: center; 
+                            min-height: 100vh; 
+                            page-break-after: always; 
+                        }
+                        img.cert { 
+                            display: block; 
+                            max-width: 100%; 
+                            height: auto; 
+                            box-shadow: 0 0 10px rgba(0,0,0,0.5); 
+                            background: white;
+                            margin: 20px;
+                        }
+                        @media print {
+                            body { background: white; }
+                            .page-break { 
+                                display: block; 
+                                min-height: 0; 
+                                margin: 0; 
+                                page-break-after: always;
+                            }
+                            img.cert {
+                                margin: 0;
+                                width: 100%;
+                                height: 100vh; 
+                                object-fit: contain; 
+                                box-shadow: none;
+                            }
+                        }
+                    </style>
+                `;
+
+                w.document.write('<!doctype html><html><head>' + style + '</head><body>');
+                imgs.forEach(src => {
+                    w.document.write('<div class="page-break"><img class="cert" src="' + src + '"></div>');
+                });
+                w.document.write('</body></html>');
+                w.document.close();
+
+                await new Promise(resolve => {
+                    const allImgs = w.document.querySelectorAll('img');
+                    let loaded = 0;
+                    if (allImgs.length === 0) resolve();
+                    const check = () => { if (++loaded >= allImgs.length) resolve(); };
+                    allImgs.forEach(img => {
+                        if (img.complete) check();
+                        else { img.onload = check; img.onerror = check; }
+                    });
+                });
+
+                setTimeout(() => { w.focus(); w.print(); }, 500);
+
+            } catch (e) {
+                console.error(e);
+                alert("生成錯誤");
+            } finally {
+                btn.innerText = originalText;
+                btn.disabled = false;
+            }
+        }
+
+        async function printAllCertificatesSeparatePDFs() {
+            const selected = parsedData.filter(d => d.selected);
+            if (!selected.length) { alert('沒有選中的名單'); return; }
+            if (!window.jspdf) { alert('jsPDF 未載入'); return; }
+
+            const { jsPDF } = window.jspdf;
+            const btn = document.querySelector('button[onclick="printAllCertificatesSeparatePDFs()"]');
+            const originalText = btn.innerText;
+            btn.disabled = true;
+
+            try {
+                if (selected.length > 3) console.log("開始批次下載...");
+
+                for (let i = 0; i < selected.length; i++) {
+                    const item = selected[i];
+                    btn.innerText = `製作中 (${i + 1}/${selected.length})...`;
+                    const imgData = renderItemToDataURL(item);
+                    const orientation = isLandscape ? 'l' : 'p';
+                    const doc = new jsPDF({ orientation, unit: 'mm', format: 'a4' });
+                    const pdfW = doc.internal.pageSize.getWidth();
+                    const pdfH = doc.internal.pageSize.getHeight();
+                    doc.addImage(imgData, 'PNG', 0, 0, pdfW, pdfH);
+                    const fullTitle = `${item.comp} ${item.cat} ${item.rank} ${item.name}`;
+                    const filename = sanitizeFilename(fullTitle) + ".pdf";
+                    doc.save(filename);
+                    await new Promise(r => setTimeout(r, 250));
+                }
+            } catch (err) {
+                console.error(err);
+                alert("下載錯誤: " + err.message);
+            } finally {
+                btn.innerText = originalText;
+                btn.disabled = false;
+            }
+        }
+
+        function clamp(v, a, b) { return Math.max(a, b ? Math.min(v, b) : v); }
+
+    </script>
+</body>
+
+</html>
