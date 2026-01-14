@@ -4,7 +4,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>Award Certificate Generator (Fixed Ratio)</title>
+    <title>Award Certificate Generator (With Team Support)</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script>pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -225,6 +225,16 @@
             font-size: 11px;
             color: #888;
         }
+        
+        .toggle-row {
+            margin-top: 8px;
+            padding: 6px 0;
+            display: flex;
+            align-items: center;
+            font-size: 14px;
+            font-weight: bold;
+            color: var(--primary);
+        }
 
         /* ===== 主容器佈局修正 ===== */
         .main {
@@ -325,7 +335,14 @@
     <div class="sidebar">
         <div class="control-group">
             <h3>1. 資料輸入</h3>
-            <textarea id="rawInput" placeholder="第一行：比賽名稱&#10;第二行：組別&#10;第三行：日期&#10;接著每行一位選手"></textarea>
+            <textarea id="rawInput" placeholder="第一行：比賽名稱&#10;第二行：組別&#10;第三行：日期&#10;接著每行一位選手 (姓名 空格 學校)"></textarea>
+            
+            <div class="toggle-row">
+                <label style="cursor:pointer; display:flex; align-items:center; gap:8px;">
+                    <input type="checkbox" id="teamToggle" onchange="toggleTeam(this.checked)">
+                    <span>啟用「學校/團體」欄位 (顯示於姓名後/下方)</span>
+                </label>
+            </div>
         </div>
 
         <div class="control-group">
@@ -340,8 +357,9 @@
                     <thead>
                         <tr>
                             <th width="10%">選</th>
-                            <th width="30%">名次</th>
-                            <th>姓名</th>
+                            <th width="20%">名次</th>
+                            <th width="30%">姓名</th>
+                            <th>學校/團體</th>
                         </tr>
                     </thead>
                     <tbody></tbody>
@@ -398,7 +416,7 @@
         const A4_WIDTH = 3508; 
         const A4_HEIGHT = 2480;
         
-        const LS_KEY = 'certGen_styles_v1';
+        const LS_KEY = 'certGen_styles_v2'; // 更新 key 避免舊版干擾
 
         const canvas = document.getElementById('certCanvas');
         const ctx = canvas.getContext('2d');
@@ -406,13 +424,15 @@
         let currentIndex = 0;
         let bgImage = null;
         let isLandscape = true;
+        let showTeam = false; // 控制是否顯示學校
 
         const defaultElements = {
             comp: { x: 0.5, y: 0.3, size: 160, color: '#000000', label: '比賽名稱' },
             cat: { x: 0.5, y: 0.4, size: 120, color: '#000000', label: '組別名稱' },
             rank: { x: 0.5, y: 0.55, size: 300, color: '#ff0000', label: '名次' },
             name: { x: 0.5, y: 0.7, size: 240, color: '#000000', label: '姓名' },
-            date: { x: 0.5, y: 0.85, size: 80, color: '#000000', label: '日期' }
+            team: { x: 0.5, y: 0.8, size: 100, color: '#000000', label: '學校/團體' }, // 新增
+            date: { x: 0.5, y: 0.88, size: 80, color: '#000000', label: '日期' }
         };
 
         let elements = JSON.parse(JSON.stringify(defaultElements));
@@ -430,7 +450,6 @@
             // 初始執行一次
             initCanvas();
             
-            // 使用 ResizeObserver 進行更強烈的尺寸監控，確保視窗變動時比例永遠正確
             const mainContainer = document.querySelector('.main');
             const observer = new ResizeObserver(() => {
                 initCanvas();
@@ -511,7 +530,6 @@
             wrapper.style.width = 'auto';
             wrapper.style.height = 'auto';
 
-            // 重繪內容
             drawPreview();
         }
 
@@ -543,6 +561,13 @@
             }
         }
 
+        /* ===== 切換團體功能 ===== */
+        function toggleTeam(checked) {
+            showTeam = checked;
+            renderStyleControls();
+            drawPreview();
+        }
+
         function parseData() {
             const raw = document.getElementById('rawInput').value.trim();
             const lines = raw.split('\n').map(s => s.trim()).filter(s => s);
@@ -556,11 +581,22 @@
             const comp = lines[0], cat = lines[1], date = lines[2];
             const players = lines.slice(3);
             const ranks = ["冠軍", "亞軍", "季軍", "第四名", "第五名", "第六名", "第七名", "第八名"];
-            parsedData = players.map((name, i) => ({
-                comp, cat, date, name,
-                rank: i < 8 ? ranks[i] : "優異獎",
-                selected: i < 8
-            }));
+            
+            parsedData = players.map((line, i) => {
+                // 邏輯修改：以第一個空白處分割，前面為姓名，後面為學校/團體
+                const parts = line.split(/\s+/);
+                const name = parts[0];
+                const team = parts.length > 1 ? parts.slice(1).join(' ') : '';
+                
+                return {
+                    comp, cat, date, 
+                    name, 
+                    team, 
+                    rank: i < 8 ? ranks[i] : "優異獎",
+                    selected: i < 8
+                };
+            });
+            
             renderTable();
             currentIndex = 0;
             drawPreview();
@@ -574,6 +610,7 @@
             <td><input type="checkbox" ${d.selected ? 'checked' : ''} onchange="toggleSelect(${i})"></td>
             <td><input type="text" value="${escapeHtml(d.rank)}" oninput="updateField(${i}, 'rank', this.value)"></td>
             <td><input type="text" value="${escapeHtml(d.name)}" oninput="updateField(${i}, 'name', this.value)"></td>
+            <td><input type="text" value="${escapeHtml(d.team)}" placeholder="無" oninput="updateField(${i}, 'team', this.value)"></td>
         </tr>
     `).join('');
             updateTop8ButtonState();
@@ -634,6 +671,9 @@
         function renderStyleControls() {
             const container = document.getElementById('styleControls');
             container.innerHTML = Object.keys(elements).map(k => {
+                // 如果是 team 且開關沒開，就不顯示
+                if (k === 'team' && !showTeam) return '';
+
                 const el = elements[k];
                 return `<div class="style-row">
             <div class="style-label">${el.label}</div>
@@ -682,9 +722,15 @@
             if(isPreview) hitRegions = {};
 
             Object.keys(elements).forEach(k => {
+                // 如果是 team 且開關沒開，直接跳過繪製
+                if (k === 'team' && !showTeam) return;
+
                 const cfg = elements[k];
                 let text = item[k] || '';
                 if (k === 'comp' || k === 'cat') text = String(text).split('\n')[0];
+
+                // 如果是 team 但內容是空的，也不繪製
+                if (k === 'team' && !text) return;
 
                 context.fillStyle = cfg.color;
                 let fontSize = cfg.size;
