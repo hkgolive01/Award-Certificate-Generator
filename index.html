@@ -4,7 +4,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>Award Certificate Generator (With Team Support)</title>
+    <title>Award Certificate Generator (Auto-Save)</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script>pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -13,11 +13,13 @@
         :root {
             --primary: #2c3e50;
             --accent: #3498db;
+            --accent-hover: #2980b9;
             --danger: #e74c3c;
             --danger-light: #fdecea;
             --success: #2ecc71;
             --bg-light: #f4f6f7;
-            --panel-width: 600px;
+            --panel-width: 40%;
+            --active-scheme: #d35400;
         }
 
         * {
@@ -26,11 +28,11 @@
 
         body {
             margin: 0;
-            font-family: "Microsoft JhengHei", sans-serif;
+            font-family: "Microsoft JhengHei", "Segoe UI", sans-serif;
             display: flex;
             height: 100vh;
             background: var(--bg-light);
-            overflow: hidden; /* 防止捲軸干擾計算 */
+            overflow: hidden;
         }
 
         .sidebar {
@@ -41,24 +43,79 @@
             overflow-y: auto;
             flex-shrink: 0;
             z-index: 10;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.05);
+        }
+
+        .scheme-selector {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 15px;
+            background: #eee;
+            padding: 5px;
+            border-radius: 6px;
+        }
+
+        .scheme-btn {
+            flex: 1;
+            padding: 4px 0;
+            border: 1px solid #ccc;
+            background: #fff;
+            color: #555;
+            cursor: pointer;
+            border-radius: 4px;
+            font-weight: normal;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+
+        .scheme-btn:hover {
+            background: #f8f8f8;
+            color: #333;
+        }
+
+        .scheme-btn.active {
+            background: var(--active-scheme);
+            color: white;
+            border-color: var(--active-scheme);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
         }
 
         h3 {
-            margin: 10px 0 6px;
+            margin: 0 0 8px 0;
             color: var(--primary);
-            font-size: 16px;
-            border-bottom: 2px solid #eee;
-            padding-bottom: 6px
+            font-size: 15px;
+            font-weight: 700;
+            border-left: 4px solid var(--accent);
+            padding-left: 8px;
+            line-height: 1.2;
+        }
+
+        .control-group {
+            background: #fff;
+            border: 1px solid #eee;
+            padding: 10px;
+            border-radius: 6px;
         }
 
         textarea {
             width: 100%;
-            height: 100px;
+            height: 80px;
             padding: 8px;
             border: 1px solid #ccc;
             border-radius: 4px;
             resize: vertical;
-            font-size: 13px
+            font-size: 13px;
+            font-family: monospace;
+        }
+
+        textarea:focus,
+        input[type=text]:focus {
+            outline: none;
+            border-color: var(--accent);
+            background: #fafdff;
         }
 
         .btn-row {
@@ -71,206 +128,267 @@
             cursor: pointer;
             border: 0;
             border-radius: 4px;
-            padding: 8px 12px;
+            padding: 6px 12px;
             background: var(--accent);
             color: #fff;
-            font-size: 13px
+            font-size: 13px;
+            transition: background 0.2s;
+        }
+
+        button:hover {
+            background: var(--accent-hover);
         }
 
         button.outline {
-            background: transparent;
-            border: 1px solid var(--accent);
-            color: var(--accent)
+            background: #fff;
+            border: 1px solid #ccc;
+            color: #555;
+        }
+
+        button.outline:hover {
+            background: #f0f0f0;
+            color: #333;
+        }
+
+        button.outline.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
         }
 
         button.small {
             padding: 10px;
             font-size: 14px;
-            margin-top: 8px;
-            width: 100%
-        }
-
-        button.active {
-            background: var(--accent);
-            color: #fff;
-            border: 1px solid rgba(0, 0, 0, 0.06);
+            width: 100%;
+            margin-top: 6px;
+            font-weight: 600;
         }
 
         .print-btn {
             background: var(--success);
-            font-weight: 700;
-            padding: 12px;
-            margin-top: 12px
+            margin-top: 15px;
+            box-shadow: 0 4px 10px rgba(46, 204, 113, 0.2);
+        }
+
+        .print-btn:hover {
+            background: #27ae60;
+        }
+
+        .btn-download-sep {
+            background: #fff;
+            color: var(--primary);
+            border: 1px solid #ccc;
+        }
+
+        .btn-download-sep:hover {
+            background: #f5f5f5;
+        }
+
+        .btn-reset {
+            background: #fff;
+            color: var(--danger);
+            border: 1px solid var(--danger);
+            margin-top: 10px;
+            opacity: 0.8;
+            width: 100%;
+        }
+
+        .btn-reset:hover {
+            opacity: 1;
+            background: var(--danger-light);
         }
 
         .table-container {
-            height: 300px;
+            height: 200px;
             overflow: auto;
             border: 1px solid #eee;
-            margin-top: 6px
+            margin-top: 6px;
+            background: #fafafa;
         }
 
         table {
             width: 100%;
             border-collapse: collapse;
-            font-size: 13px
+            font-size: 12px;
         }
 
         th {
-            background: #f8f9fa;
+            background: #eaeaea;
             position: sticky;
             top: 0;
             padding: 6px;
             text-align: left;
-            z-index: 1
+            z-index: 1;
+            font-weight: 600;
+            color: #555;
         }
 
         td {
-            padding: 6px;
-            border-bottom: 1px solid #eee
+            padding: 4px 6px;
+            border-bottom: 1px solid #eee;
+            background: #fff;
         }
 
         input[type=text] {
             width: 100%;
             border: 1px solid transparent;
-            padding: 4px
-        }
-
-        input[type=text]:focus {
-            border-color: var(--accent);
-            background: #fff
+            padding: 2px 4px;
+            font-size: 12px;
         }
 
         .orient-file-row {
             display: flex;
-            gap: 10px;
+            gap: 8px;
             align-items: center;
             margin-top: 6px
         }
 
         .orientation-toggle {
             display: flex;
-            gap: 6px;
         }
 
         .orientation-btn {
-            padding: 8px 12px;
-            border-radius: 4px;
-            border: 1px solid #eee;
-            background: transparent;
-            color: var(--primary);
-            font-size: 13px
+            padding: 6px 10px;
+            border: 1px solid #ccc;
+            background: #fff;
+            color: #555;
+            font-size: 12px;
+            border-radius: 0;
+        }
+
+        .orientation-btn:first-child {
+            border-radius: 4px 0 0 4px;
+        }
+
+        .orientation-btn:last-child {
+            border-radius: 0 4px 4px 0;
+            border-left: none;
+        }
+
+        .orientation-btn.active {
+            background: var(--primary);
+            color: #fff;
+            border-color: var(--primary);
         }
 
         .file-drop {
-            margin-left: auto;
+            flex: 1;
             border: 2px dashed #bdc3c7;
-            padding: 10px 12px;
+            padding: 6px;
             text-align: center;
-            border-radius: 6px;
+            border-radius: 4px;
             cursor: pointer;
             color: #7f8c8d;
-            min-width: 180px
+            font-size: 12px;
+            background: #fafafa;
+            transition: all 0.2s;
         }
 
-        /* Style Controls Layout */
+        .file-drop:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+            background: #f0f7fb;
+        }
+
         .style-row {
             display: flex;
             align-items: center;
             gap: 8px;
-            margin-bottom: 8px;
+            margin-bottom: 6px;
             padding-bottom: 4px;
             border-bottom: 1px dashed #eee;
         }
 
+        .style-row:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+        }
+
         .style-label {
             width: 70px;
-            font-weight: 700;
-            font-size: 13px;
+            font-weight: 600;
+            font-size: 12px;
+            color: #444;
         }
 
         input.color-swatch {
-            width: 32px;
-            height: 28px;
+            width: 24px;
+            height: 24px;
             border-radius: 4px;
-            border: 1px solid #ddd;
+            border: 1px solid #ccc;
             padding: 0;
             cursor: pointer;
             -webkit-appearance: none;
-            appearance: none;
         }
-        
-        input.color-swatch::-webkit-color-swatch-wrapper { padding: 0; }
-        input.color-swatch::-webkit-color-swatch { border: none; border-radius: 4px; }
 
         input[type=range] {
-            width: 250px;
+            flex: 1;
+            height: 4px;
         }
-        
+
         .coord-group {
             display: flex;
             align-items: center;
-            gap: 4px;
+            gap: 2px;
         }
 
         .coord-input {
-            width: 55px;
-            padding: 4px;
+            width: 45px;
+            padding: 2px;
             border: 1px solid #ccc;
-            border-radius: 4px;
+            border-radius: 3px;
             text-align: center;
-            font-size: 12px;
-        }
-        .coord-label {
             font-size: 11px;
-            color: #888;
+            color: #555;
         }
-        
+
+        .coord-label {
+            font-size: 10px;
+            color: #999;
+        }
+
         .toggle-row {
             margin-top: 8px;
-            padding: 6px 0;
+            padding: 4px 0;
             display: flex;
             align-items: center;
-            font-size: 14px;
-            font-weight: bold;
+            font-size: 13px;
+            font-weight: 600;
             color: var(--primary);
         }
 
-        /* ===== 主容器佈局修正 ===== */
         .main {
             flex: 1;
             display: flex;
             align-items: center;
             justify-content: center;
             position: relative;
-            background: #555;
-            /* 這裡很重要，確保容器本身佔滿剩餘空間，作為計算基準 */
-            width: 100%; 
+            background: #525659;
+            width: 100%;
             height: 100%;
-            overflow: hidden; 
+            overflow: hidden;
+            padding: 20px;
         }
 
         .canvas-wrapper {
-            /* 移除原本的尺寸限制，完全交給 JS 計算 */
             background: #fff;
-            box-shadow: 0 0 30px rgba(0, 0, 0, 0.45);
+            box-shadow: 0 5px 25px rgba(0, 0, 0, 0.5);
             display: flex;
             align-items: center;
             justify-content: center;
             padding: 0;
             width: auto;
             height: auto;
+            max-width: 100%;
+            max-height: 100%;
         }
 
         canvas {
             display: block;
             border-radius: 0;
-            outline: 1px solid #ddd;
+            max-width: 100%;
+            max-height: 90vh;
             cursor: grab;
-            /* 強制移除 CSS 對 Canvas 尺寸的干擾 */
-            max-width: none !important;
-            max-height: none !important;
-            min-width: 0;
         }
 
         canvas:active {
@@ -279,53 +397,90 @@
 
         .nav-bar {
             position: absolute;
-            bottom: 20px;
-            background: rgba(0, 0, 0, 0.7);
+            bottom: 30px;
+            background: rgba(44, 62, 80, 0.9);
             color: #fff;
-            padding: 10px 18px;
+            padding: 8px 20px;
             border-radius: 30px;
             display: flex;
             align-items: center;
-            gap: 18px;
+            gap: 20px;
             z-index: 20;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
         }
 
         .nav-btn {
             background: #fff;
             color: #333;
-            width: 36px;
-            height: 36px;
+            width: 32px;
+            height: 32px;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-weight: 700
+            font-weight: 700;
+            padding: 0;
         }
 
-        .btn-download-sep {
-            background: var(--danger-light);
-            color: var(--danger);
-            border: 1px solid rgba(231, 76, 60, 0.15);
-        }
-        
-        .btn-reset {
-            color: var(--danger);
-            border-color: var(--danger);
-            width: 100%;
-            margin-top: 10px;
-            opacity: 0.8;
-        }
-        .btn-reset:hover {
-            opacity: 1;
-            background: var(--danger-light);
+        .nav-btn:active {
+            transform: scale(0.95);
         }
 
         @media print {
-            body { background: #fff }
-            .sidebar, .nav-bar { display: none !important }
-            .canvas-wrapper { box-shadow: none; max-width: none; max-height: none }
-            canvas { display: none }
-            #print-image { display: block !important; width: 100%; height: 100%; object-fit: contain }
+            body {
+                background: #fff;
+                display: block;
+            }
+
+            .sidebar,
+            .nav-bar {
+                display: none !important
+            }
+
+            .canvas-wrapper {
+                box-shadow: none;
+                max-width: none;
+                max-height: none;
+                margin: 0;
+                padding: 0;
+            }
+
+            .main {
+                background: #fff;
+                padding: 0;
+                display: block;
+                height: auto;
+                overflow: visible;
+            }
+
+            canvas {
+                display: none
+            }
+
+            #print-image {
+                display: block !important;
+                width: 100%;
+                height: 100%;
+                object-fit: contain
+            }
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #ccc;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #bbb;
         }
     </style>
 </head>
@@ -333,14 +488,21 @@
 <body>
 
     <div class="sidebar">
+        <div class="scheme-selector">
+            <button class="scheme-btn active" onclick="switchScheme(1)" id="btn_scheme_1">方案 1</button>
+            <button class="scheme-btn" onclick="switchScheme(2)" id="btn_scheme_2">方案 2</button>
+            <button class="scheme-btn" onclick="switchScheme(3)" id="btn_scheme_3">方案 3</button>
+            <button class="scheme-btn" onclick="switchScheme(4)" id="btn_scheme_4">方案 4</button>
+        </div>
+
         <div class="control-group">
             <h3>1. 資料輸入</h3>
-            <textarea id="rawInput" placeholder="第一行：比賽名稱&#10;第二行：組別&#10;第三行：日期&#10;接著每行一位選手 (姓名 空格 學校)"></textarea>
-            
+            <textarea id="rawInput" placeholder="第一行：比賽名稱&#10;第二行：組別&#10;第三行：日期&#10;接著每行一位選手 (姓名 空格 學校/團體)"></textarea>
+
             <div class="toggle-row">
                 <label style="cursor:pointer; display:flex; align-items:center; gap:8px;">
                     <input type="checkbox" id="teamToggle" onchange="toggleTeam(this.checked)">
-                    <span>啟用「學校/團體」欄位 (顯示於姓名後/下方)</span>
+                    <span>啟用「學校/團體」欄位 (自動儲存於方案)</span>
                 </label>
             </div>
         </div>
@@ -350,7 +512,7 @@
             <div class="btn-row">
                 <button class="outline" id="selectAllBtn" onclick="batchSelect('all')">全選</button>
                 <button class="outline" id="selectNoneBtn" onclick="batchSelect('none')">全不選</button>
-                <button class="outline" id="top8Btn" onclick="batchSelect('top8')">選前 8 名</button>
+                <button class="outline" id="top8Btn" onclick="batchSelect('top8')">前 8</button>
             </div>
             <div class="table-container">
                 <table id="dataTable">
@@ -371,12 +533,12 @@
             <h3>3. 背景 (A4)</h3>
             <div class="orient-file-row">
                 <div class="orientation-toggle" role="tablist" aria-label="畫面方向">
-                    <button class="outline orientation-btn" data-orient="landscape" id="orientLandscape">橫向</button>
-                    <button class="outline orientation-btn" data-orient="portrait" id="orientPortrait">直向</button>
+                    <button class="orientation-btn" data-orient="landscape" id="orientLandscape">橫向</button>
+                    <button class="orientation-btn" data-orient="portrait" id="orientPortrait">直向</button>
                 </div>
 
                 <div class="file-drop" id="dropZone" onclick="document.getElementById('bgInput').click()">
-                    📂 點擊或拖曳上傳 PDF 或 圖片
+                    📂 上傳 PDF / 圖片
                     <input id="bgInput" type="file" accept="image/*,application/pdf" style="display:none"
                         onchange="handleFile(this.files[0])">
                 </div>
@@ -384,20 +546,19 @@
         </div>
 
         <div class="control-group">
-            <h3>4. 樣式（拖動位置 + 顏色/大小）</h3>
-            <div style="display:flex; font-size:12px; color:#888; margin-bottom:5px; padding-left:80px;">
-                <span style="width:40px">顏色</span>
-                <span style="width:90px">字體大小</span>
+            <h3>4. 樣式調整 (拖曳畫布文字)</h3>
+            <div style="display:flex; font-size:11px; color:#888; margin-bottom:5px; padding-left:80px;">
+                <span style="width:30px">顏色</span>
+                <span style="flex:1">大小</span>
                 <span style="margin-left:10px">位置 X / Y</span>
             </div>
             <div id="styleControls"></div>
-            <button class="outline btn-reset" onclick="resetStylesToDefault()">↺ 恢復默認樣式設置</button>
+            <button class="outline btn-reset" onclick="resetCurrentScheme()">↺ 重置當前方案 (含資料與樣式)</button>
         </div>
 
-        <button class="small print-btn" onclick="printCurrentCertificate()">🖨️ 列印目前獎狀（開啟列印視窗）</button>
-        <button class="small" onclick="printAllCertificates()">🖨️ 列印全部獎狀（開啟列印視窗）</button>
-        <button class="small btn-download-sep" onclick="printAllCertificatesSeparatePDFs()"> 📥 列印全部獎狀（獨立
-            PDF，直接下載）</button>
+        <button class="small print-btn" onclick="printCurrentCertificate()">🖨️ 列印目前 (預覽窗)</button>
+        <button class="small" onclick="printAllCertificates()">🖨️ 列印全部 (預覽窗)</button>
+        <button class="small btn-download-sep" onclick="printAllCertificatesSeparatePDFs()"> 📥 下載全部 (獨立 PDF)</button>
     </div>
 
     <div class="main">
@@ -407,16 +568,18 @@
         </div>
         <div class="nav-bar">
             <button class="nav-btn" onclick="nav(-1)">❮</button>
-            <span id="previewLabel">載入中...</span>
+            <span id="previewLabel" style="font-weight:600; font-size:14px;">載入中...</span>
             <button class="nav-btn" onclick="nav(1)">❯</button>
         </div>
     </div>
 
     <script>
-        const A4_WIDTH = 3508; 
+        const A4_WIDTH = 3508;
         const A4_HEIGHT = 2480;
-        
-        const LS_KEY = 'certGen_styles_v2'; // 更新 key 避免舊版干擾
+        const LS_BASE_KEY = 'certGen_v3_scheme_';
+        const LS_LAST_ID_KEY = 'certGen_v3_last_active_id';
+
+        let currentScheme = 1;
 
         const canvas = document.getElementById('certCanvas');
         const ctx = canvas.getContext('2d');
@@ -424,14 +587,14 @@
         let currentIndex = 0;
         let bgImage = null;
         let isLandscape = true;
-        let showTeam = false; // 控制是否顯示學校
+        let showTeam = false;
 
         const defaultElements = {
             comp: { x: 0.5, y: 0.3, size: 160, color: '#000000', label: '比賽名稱' },
             cat: { x: 0.5, y: 0.4, size: 120, color: '#000000', label: '組別名稱' },
             rank: { x: 0.5, y: 0.55, size: 300, color: '#ff0000', label: '名次' },
             name: { x: 0.5, y: 0.7, size: 240, color: '#000000', label: '姓名' },
-            team: { x: 0.5, y: 0.8, size: 100, color: '#000000', label: '學校/團體' }, // 新增
+            team: { x: 0.5, y: 0.8, size: 100, color: '#000000', label: '學校/團體' },
             date: { x: 0.5, y: 0.88, size: 80, color: '#000000', label: '日期' }
         };
 
@@ -441,22 +604,26 @@
         let isDragging = false, dragTarget = null;
         let dragOffset = { x: 0, y: 0 };
 
-        /* 初始化 */
         window.onload = () => {
-            loadStylesFromStorage();
-            renderStyleControls();
-            document.getElementById('rawInput').addEventListener('input', parseData);
-            
-            // 初始執行一次
-            initCanvas();
-            
+            const lastId = localStorage.getItem(LS_LAST_ID_KEY);
+            let schemeToLoad = 1;
+            if (lastId) {
+                schemeToLoad = parseInt(lastId, 10);
+                if (isNaN(schemeToLoad) || schemeToLoad < 1 || schemeToLoad > 4) schemeToLoad = 1;
+            }
+
+            switchScheme(schemeToLoad, false);
+
+            document.getElementById('rawInput').addEventListener('input', () => {
+                parseData();
+                saveScheme(currentScheme);
+            });
+
             const mainContainer = document.querySelector('.main');
             const observer = new ResizeObserver(() => {
-                initCanvas();
+                initCanvasDimensions();
             });
             observer.observe(mainContainer);
-
-            parseData();
 
             const dz = document.getElementById('dropZone');
             dz.ondragover = e => { e.preventDefault(); dz.style.background = '#eafaf1'; };
@@ -465,67 +632,178 @@
 
             window.addEventListener('keydown', (ev) => {
                 if (!selectedElement) return;
-                const stepPx = ev.shiftKey ? 10 : 2; 
+                if (ev.target.tagName === 'INPUT' || ev.target.tagName === 'TEXTAREA') return;
+
+                const stepPx = ev.shiftKey ? 10 : 2;
                 let dx = 0, dy = 0;
                 if (ev.key === 'ArrowUp') dy = -stepPx;
                 else if (ev.key === 'ArrowDown') dy = stepPx;
                 else if (ev.key === 'ArrowLeft') dx = -stepPx;
                 else if (ev.key === 'ArrowRight') dx = stepPx;
                 else return;
+
                 ev.preventDefault();
                 elements[selectedElement].x = clamp01(elements[selectedElement].x + dx / canvas.width);
                 elements[selectedElement].y = clamp01(elements[selectedElement].y + dy / canvas.height);
                 drawPreview();
                 updateInputValues(selectedElement);
-                saveStylesToStorage();
+                saveScheme(currentScheme);
             });
 
             document.querySelectorAll('.orientation-btn').forEach(b => {
                 b.addEventListener('click', () => {
                     const v = b.getAttribute('data-orient');
                     isLandscape = (v === 'landscape');
-                    document.querySelectorAll('.orientation-btn').forEach(x => x.classList.remove('active'));
-                    b.classList.add('active');
-                    initCanvas();
+                    updateOrientationUI();
+                    initCanvasDimensions();
+                    saveScheme(currentScheme);
                 });
             });
-            document.getElementById('orientLandscape').classList.add('active');
-            updateTop8ButtonState();
         };
 
-        function initCanvas() {
+        function switchScheme(id, saveCurrent = true) {
+            if (saveCurrent && document.getElementById('rawInput')) {
+                saveScheme(currentScheme);
+            }
+            currentScheme = id;
+            localStorage.setItem(LS_LAST_ID_KEY, id);
+            document.querySelectorAll('.scheme-btn').forEach(btn => btn.classList.remove('active'));
+            const btn = document.getElementById(`btn_scheme_${id}`);
+            if (btn) btn.classList.add('active');
+            loadScheme(id);
+            initCanvasDimensions();
+            parseData();
+        }
+
+        function saveScheme(id) {
+            const rawText = document.getElementById('rawInput').value;
+            const dataToSave = {
+                elements: elements,
+                isLandscape: isLandscape,
+                showTeam: showTeam,
+                rawInput: rawText // 新增：儲存輸入框文字
+            };
+            localStorage.setItem(LS_BASE_KEY + id, JSON.stringify(dataToSave));
+        }
+
+        function loadScheme(id) {
+            const json = localStorage.getItem(LS_BASE_KEY + id);
+            const inputArea = document.getElementById('rawInput');
+
+            if (json) {
+                try {
+                    const data = JSON.parse(json);
+
+                    // 1. 還原樣式
+                    elements = { ...defaultElements, ...data.elements };
+                    Object.keys(defaultElements).forEach(k => {
+                        if (!elements[k]) elements[k] = defaultElements[k];
+                    });
+
+                    // 2. 還原設定
+                    if (typeof data.isLandscape !== 'undefined') isLandscape = data.isLandscape;
+                    if (typeof data.showTeam !== 'undefined') showTeam = data.showTeam;
+
+                    // 3. 還原文字內容 (如果有存過，就用存的；否則清空或預設)
+                    if (typeof data.rawInput !== 'undefined') {
+                        inputArea.value = data.rawInput;
+                    } else {
+                        // 如果是舊版資料沒有存 rawInput，或者是新方案，就給空值
+                        // 或是為了友善，如果是方案1且完全沒資料，可以給預設提示(這裡選擇清空以符合使用者「自動保存」的直覺：沒存就是空)
+                        inputArea.value = '';
+                    }
+
+                } catch (e) {
+                    console.error("載入方案失敗，重置為預設", e);
+                    elements = JSON.parse(JSON.stringify(defaultElements));
+                    inputArea.value = '';
+                }
+            } else {
+                // 無存檔，使用預設值
+                elements = JSON.parse(JSON.stringify(defaultElements));
+                isLandscape = true;
+                showTeam = false;
+                // 新方案預設為空，或可考慮放 placeholder 文字，這裡設為空字串讓 placeholder 顯示
+                inputArea.value = '';
+            }
+
+            // 更新 UI 狀態
+            document.getElementById('teamToggle').checked = showTeam;
+            updateOrientationUI();
+            renderStyleControls();
+        }
+
+        // 修改：重置整個方案（包含資料）
+        function resetCurrentScheme() {
+            if (confirm(`確定要完全重置「方案 ${currentScheme}」嗎？\n\n這將會清除：\n1. 所有文字輸入內容\n2. 所有樣式設定\n3. 恢復為橫向、隱藏學校欄位`)) {
+                // 1. 重置變數
+                elements = JSON.parse(JSON.stringify(defaultElements));
+                isLandscape = true;
+                showTeam = false;
+
+                // 2. 清空輸入框
+                document.getElementById('rawInput').value = '';
+
+                // 3. 刷新 UI
+                renderStyleControls();
+                updateOrientationUI();
+                document.getElementById('teamToggle').checked = showTeam;
+
+                // 4. 解析空資料 (會清空表格)
+                parseData();
+
+                // 5. 繪圖與存檔
+                initCanvasDimensions();
+                saveScheme(currentScheme);
+            }
+        }
+
+        function updateOrientationUI() {
+            document.querySelectorAll('.orientation-btn').forEach(x => x.classList.remove('active'));
+            if (isLandscape) document.getElementById('orientLandscape').classList.add('active');
+            else document.getElementById('orientPortrait').classList.add('active');
+        }
+
+        /* ================= 核心邏輯：資料解析與繪圖 ================= */
+
+        function initCanvasDimensions() {
             const mainContainer = document.querySelector('.main');
-            if(!mainContainer) return;
-            
+            if (!mainContainer) return;
+
             const rect = mainContainer.getBoundingClientRect();
-            const availW = rect.width;
-            const availH = rect.height;
+            // 減去 padding
+            const availW = rect.width - 40;
+            const availH = rect.height - 40;
 
             const targetIntW = isLandscape ? A4_WIDTH : A4_HEIGHT;
             const targetIntH = isLandscape ? A4_HEIGHT : A4_WIDTH;
 
+            // 設定 Canvas 內部解析度
             if (canvas.width !== targetIntW || canvas.height !== targetIntH) {
                 canvas.width = targetIntW;
                 canvas.height = targetIntH;
             }
             canvas.style.touchAction = 'none';
 
+            // 計算 CSS 顯示尺寸 (保持比例塞入 main)
             let displayW, displayH;
-            const scaleFactor = 0.95;
 
-            if (isLandscape) {
-                const ratio = Math.min(availW / 2.97, availH / 2.10);
-                displayW = ratio * scaleFactor * 2.97;
-                displayH = ratio * scaleFactor * 2.10;
+            // 比例計算
+            const aspect = targetIntW / targetIntH;
+
+            if (availW / availH > aspect) {
+                // 容器比較寬，以高度為基準
+                displayH = availH;
+                displayW = displayH * aspect;
             } else {
-                const ratio = Math.min(availW / 2.10, availH / 2.97);
-                displayW = ratio * scaleFactor * 2.10;
-                displayH = ratio * scaleFactor * 2.97; 
+                // 容器比較高，以寬度為基準
+                displayW = availW;
+                displayH = displayW / aspect;
             }
 
             canvas.style.width = `${displayW}px`;
             canvas.style.height = `${displayH}px`;
-            
+
             const wrapper = document.getElementById('canvasWrap');
             wrapper.style.width = 'auto';
             wrapper.style.height = 'auto';
@@ -533,44 +811,18 @@
             drawPreview();
         }
 
-        /* ===== 保存與讀取功能 ===== */
-        function saveStylesToStorage() {
-            localStorage.setItem(LS_KEY, JSON.stringify(elements));
-        }
-
-        function loadStylesFromStorage() {
-            const saved = localStorage.getItem(LS_KEY);
-            if (saved) {
-                try {
-                    const parsed = JSON.parse(saved);
-                    Object.keys(defaultElements).forEach(key => {
-                        if (parsed[key]) elements[key] = parsed[key];
-                    });
-                } catch (e) {
-                    console.error("讀取樣式設定失敗", e);
-                }
-            }
-        }
-
-        function resetStylesToDefault() {
-            if (confirm("確定要將所有文字的顏色、大小和位置恢復成默認值嗎？")) {
-                elements = JSON.parse(JSON.stringify(defaultElements));
-                localStorage.removeItem(LS_KEY);
-                renderStyleControls();
-                drawPreview();
-            }
-        }
-
-        /* ===== 切換團體功能 ===== */
         function toggleTeam(checked) {
             showTeam = checked;
             renderStyleControls();
-            drawPreview();
+            parseData(); // 重新解析資料以顯示/隱藏表格欄位
+            saveScheme(currentScheme);
         }
 
         function parseData() {
             const raw = document.getElementById('rawInput').value.trim();
             const lines = raw.split('\n').map(s => s.trim()).filter(s => s);
+
+            // 至少要有 標題、組別、日期、一個人
             if (lines.length < 4) {
                 parsedData = [];
                 renderTable();
@@ -578,48 +830,87 @@
                 updateTop8ButtonState();
                 return;
             }
-            const comp = lines[0], cat = lines[1], date = lines[2];
+
+            const comp = lines[0];
+            const cat = lines[1];
+            const date = lines[2];
             const players = lines.slice(3);
+
             const ranks = ["冠軍", "亞軍", "季軍", "第四名", "第五名", "第六名", "第七名", "第八名"];
-            
+
             parsedData = players.map((line, i) => {
-                // 邏輯修改：以第一個空白處分割，前面為姓名，後面為學校/團體
+                // 核心算法：以第一個連續空白切分
+                // "王小明  台北國小" -> name: "王小明", team: "台北國小"
                 const parts = line.split(/\s+/);
                 const name = parts[0];
                 const team = parts.length > 1 ? parts.slice(1).join(' ') : '';
-                
+
                 return {
-                    comp, cat, date, 
-                    name, 
-                    team, 
+                    comp, cat, date,
+                    name,
+                    team,
                     rank: i < 8 ? ranks[i] : "優異獎",
-                    selected: i < 8
+                    selected: i < 8 // 預設前8勾選
                 };
             });
-            
+
             renderTable();
-            currentIndex = 0;
+            // 如果 index 超出範圍重置
+            if (currentIndex >= parsedData.length) currentIndex = 0;
+
             drawPreview();
             updateTop8ButtonState();
         }
 
         function renderTable() {
             const tbody = document.querySelector('#dataTable tbody');
+            const thTeam = document.querySelector('#dataTable th:last-child');
+
+            // 顯示/隱藏表頭的「學校」
+            if (thTeam) thTeam.style.display = showTeam ? '' : 'none';
+
             tbody.innerHTML = parsedData.map((d, i) => `
-        <tr>
-            <td><input type="checkbox" ${d.selected ? 'checked' : ''} onchange="toggleSelect(${i})"></td>
-            <td><input type="text" value="${escapeHtml(d.rank)}" oninput="updateField(${i}, 'rank', this.value)"></td>
-            <td><input type="text" value="${escapeHtml(d.name)}" oninput="updateField(${i}, 'name', this.value)"></td>
-            <td><input type="text" value="${escapeHtml(d.team)}" placeholder="無" oninput="updateField(${i}, 'team', this.value)"></td>
-        </tr>
-    `).join('');
+                <tr class="${i === currentIndex ? 'active-row' : ''}" style="${i === currentIndex ? 'background:#e1f5fe' : ''}">
+                    <td><input type="checkbox" ${d.selected ? 'checked' : ''} onchange="toggleSelect(${i})"></td>
+                    <td><input type="text" value="${escapeHtml(d.rank)}" oninput="updateField(${i}, 'rank', this.value)"></td>
+                    <td><input type="text" value="${escapeHtml(d.name)}" oninput="updateField(${i}, 'name', this.value)" onclick="jumpTo(${i})" style="cursor:pointer; font-weight:bold; color:#2980b9"></td>
+                    <td style="display:${showTeam ? '' : 'none'}"><input type="text" value="${escapeHtml(d.team)}" placeholder="無" oninput="updateField(${i}, 'team', this.value)"></td>
+                </tr>
+            `).join('');
+
             updateTop8ButtonState();
         }
 
+        function jumpTo(i) {
+            currentIndex = i;
+            renderTable(); // 更新高亮行
+            drawPreview();
+        }
+
         function escapeHtml(s) { return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
-        function batchSelect(type) { parsedData.forEach((d, i) => { if (type === 'all') d.selected = true; else if (type === 'none') d.selected = false; else if (type === 'top8') d.selected = (i < 8); }); const checkboxes = document.querySelectorAll('#dataTable input[type="checkbox"]'); checkboxes.forEach((c, i) => { c.checked = parsedData[i].selected; }); drawPreview(); updateTop8ButtonState(); }
-        function toggleSelect(i) { parsedData[i].selected = !parsedData[i].selected; drawPreview(); updateTop8ButtonState(); }
-        function updateField(i, k, v) { parsedData[i][k] = v; if (i === currentIndex) drawPreview(); updateTop8ButtonState(); }
+
+        function batchSelect(type) {
+            parsedData.forEach((d, i) => {
+                if (type === 'all') d.selected = true;
+                else if (type === 'none') d.selected = false;
+                else if (type === 'top8') d.selected = (i < 8);
+            });
+            renderTable();
+            drawPreview();
+            updateTop8ButtonState();
+        }
+
+        function toggleSelect(i) {
+            parsedData[i].selected = !parsedData[i].selected;
+            drawPreview();
+            updateTop8ButtonState();
+        }
+
+        function updateField(i, k, v) {
+            parsedData[i][k] = v;
+            if (i === currentIndex) drawPreview();
+            // 不重新渲染整個表格以免失去焦點
+        }
 
         function isExactlyTop8Selected() {
             if (parsedData.length < 8) return false;
@@ -644,7 +935,7 @@
                     const typed = new Uint8Array(e.target.result);
                     pdfjsLib.getDocument(typed).promise.then(pdf => {
                         pdf.getPage(1).then(page => {
-                            const viewport = page.getViewport({ scale: 2 });
+                            const viewport = page.getViewport({ scale: 2 }); // 高解析讀取
                             const hidden = document.createElement('canvas');
                             hidden.width = viewport.width; hidden.height = viewport.height;
                             page.render({ canvasContext: hidden.getContext('2d'), viewport }).promise.then(() => {
@@ -667,7 +958,7 @@
             }
         }
 
-        /* ===== 樣式控制區 ===== */
+        /* ===== UI 建構: 樣式控制區 ===== */
         function renderStyleControls() {
             const container = document.getElementById('styleControls');
             container.innerHTML = Object.keys(elements).map(k => {
@@ -692,50 +983,53 @@
             }).join('');
         }
 
-        function updateStyle(k, p, v) { 
-            elements[k][p] = (p === 'size' || p === 'x' || p === 'y') ? Number(v) : v; 
-            drawPreview(); 
-            saveStylesToStorage(); 
+        function updateStyle(k, p, v) {
+            elements[k][p] = (p === 'size' || p === 'x' || p === 'y') ? Number(v) : v;
+            drawPreview();
+            saveScheme(currentScheme);
         }
 
         function updateInputValues(k) {
-            if(!k) return;
+            if (!k) return;
             const el = elements[k];
             const inpX = document.getElementById(`inp_x_${k}`);
             const inpY = document.getElementById(`inp_y_${k}`);
-            if(inpX) inpX.value = el.x.toFixed(3);
-            if(inpY) inpY.value = el.y.toFixed(3);
+            if (inpX) inpX.value = el.x.toFixed(3);
+            if (inpY) inpY.value = el.y.toFixed(3);
         }
 
-        /* ===== 繪圖邏輯 ===== */
+        /* ===== Canvas 繪圖邏輯 ===== */
         function drawItemToCtx(item, context, w, h, isPreview) {
             context.clearRect(0, 0, w, h);
+
+            // 繪製背景
             if (bgImage) {
                 try { context.drawImage(bgImage, 0, 0, w, h); } catch (e) { context.fillStyle = '#fff'; context.fillRect(0, 0, w, h); }
             } else {
                 context.fillStyle = '#fff'; context.fillRect(0, 0, w, h);
+                // 畫個邊框表示邊界
                 context.strokeStyle = '#ccc'; context.lineWidth = Math.max(2, w * 0.003); context.strokeRect(0, 0, w, h);
             }
+
             if (!item) return;
             context.textAlign = 'center'; context.textBaseline = 'middle';
 
-            if(isPreview) hitRegions = {};
+            if (isPreview) hitRegions = {};
 
             Object.keys(elements).forEach(k => {
-                // 如果是 team 且開關沒開，直接跳過繪製
                 if (k === 'team' && !showTeam) return;
 
                 const cfg = elements[k];
                 let text = item[k] || '';
-                if (k === 'comp' || k === 'cat') text = String(text).split('\n')[0];
+                if (k === 'comp' || k === 'cat') text = String(text).split('\n')[0]; // 標題類只取第一行
 
-                // 如果是 team 但內容是空的，也不繪製
                 if (k === 'team' && !text) return;
 
                 context.fillStyle = cfg.color;
                 let fontSize = cfg.size;
                 context.font = `bold ${fontSize}px "Microsoft JhengHei", sans-serif`;
-                
+
+                // 自動縮小字體邏輯
                 const maxWidth = Math.floor(w * 0.88);
                 let metrics = context.measureText(text);
                 while (metrics.width > maxWidth && fontSize > 16) {
@@ -746,8 +1040,8 @@
 
                 const x = cfg.x * w, y = cfg.y * h;
                 const lines = (k === 'comp' || k === 'cat') ? [text] : String(item[k] || '').split('\n');
-                
-                const lh = fontSize * 1.1; 
+
+                const lh = fontSize * 1.1;
                 const totalTextHeight = lines.length * lh;
                 let maxLineWidth = 0;
                 lines.forEach(ln => {
@@ -755,24 +1049,23 @@
                     if (m.width > maxLineWidth) maxLineWidth = m.width;
                 });
 
-                const paddingX = fontSize * 0.5; 
+                const paddingX = fontSize * 0.5;
                 const paddingY = fontSize * 0.4;
                 const rectW = maxLineWidth + paddingX * 2;
-                const rectH = totalTextHeight + paddingY; 
-                
+                const rectH = totalTextHeight + paddingY;
+
                 const rectX = x - rectW / 2;
                 const finalRectY = y - rectH / 2;
 
-                if(isPreview) {
+                if (isPreview) {
                     hitRegions[k] = { x: rectX, y: finalRectY, w: rectW, h: rectH };
                 }
 
                 const startY = y - (lines.length - 1) / 2 * lh;
                 lines.forEach((ln, i) => context.fillText(ln, x, startY + i * lh));
-
-                if (selectedElement === k) {
+                if (isPreview && selectedElement === k) {
                     context.save();
-                    context.fillStyle = 'rgba(52,152,219,0.15)'; 
+                    context.fillStyle = 'rgba(52,152,219,0.15)';
                     context.strokeStyle = 'rgba(52,152,219,0.8)';
                     context.lineWidth = Math.max(2, fontSize * 0.05);
                     roundRect(context, rectX, finalRectY, rectW, rectH, Math.max(4, fontSize * 0.08), true, true);
@@ -803,7 +1096,11 @@
             if (!parsedData[currentIndex]) {
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
                 if (bgImage) ctx.drawImage(bgImage, 0, 0, canvas.width, canvas.height);
-                else { ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, canvas.width, canvas.height); ctx.strokeStyle = '#ccc'; ctx.lineWidth = 10; ctx.strokeRect(0, 0, canvas.width, canvas.height); }
+                else {
+                    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    ctx.strokeStyle = '#eee'; ctx.lineWidth = 10; ctx.strokeRect(0, 0, canvas.width, canvas.height);
+                    ctx.fillStyle = '#ccc'; ctx.font = '30px sans-serif'; ctx.fillText('尚無資料', canvas.width / 2, canvas.height / 2);
+                }
                 updateNavDisplay();
                 return;
             }
@@ -812,7 +1109,6 @@
             updateNavDisplay();
         }
 
-        /* ===== 互動邏輯 ===== */
         canvas.addEventListener('mousedown', startDrag);
         canvas.addEventListener('touchstart', startDrag, { passive: false });
         canvas.addEventListener('click', onCanvasClick);
@@ -823,10 +1119,9 @@
         window.addEventListener('touchend', endDrag);
 
         function checkHit(px, py) {
-            // 滑鼠座標 (Display Size) 轉 內部座標 (Internal Size)
             const scaleX = canvas.width / parseFloat(canvas.style.width);
             const scaleY = canvas.height / parseFloat(canvas.style.height);
-            
+
             const internalX = px * scaleX;
             const internalY = py * scaleY;
 
@@ -841,21 +1136,21 @@
 
         function startDrag(e) {
             e.preventDefault();
-            const pos = getPos(e); 
+            const pos = getPos(e);
             const hitKey = checkHit(pos.x, pos.y);
 
             if (hitKey) {
                 selectedElement = hitKey;
                 isDragging = true;
                 dragTarget = hitKey;
-                
+
                 const el = elements[hitKey];
                 const scaleX = canvas.width / parseFloat(canvas.style.width);
                 const scaleY = canvas.height / parseFloat(canvas.style.height);
-                
+
                 const cx = el.x * canvas.width;
                 const cy = el.y * canvas.height;
-                
+
                 const mx = pos.x * scaleX;
                 const my = pos.y * scaleY;
 
@@ -875,7 +1170,7 @@
             if (!isDragging || !dragTarget) return;
             e.preventDefault();
             const pos = getPos(e);
-            
+
             const scaleX = canvas.width / parseFloat(canvas.style.width);
             const scaleY = canvas.height / parseFloat(canvas.style.height);
 
@@ -887,7 +1182,7 @@
 
             elements[dragTarget].x = clamp01(newX / canvas.width);
             elements[dragTarget].y = clamp01(newY / canvas.height);
-            
+
             drawPreview();
             updateInputValues(dragTarget);
         }
@@ -897,7 +1192,7 @@
                 isDragging = false;
                 dragTarget = null;
                 canvas.style.cursor = 'grab';
-                saveStylesToStorage();
+                saveScheme(currentScheme);
             }
         }
 
@@ -924,7 +1219,6 @@
 
         function clamp01(v) { return Math.max(0, Math.min(1, v)); }
 
-        /* ===== 導覽 & 輸出 ===== */
         function nav(dir) {
             if (!parsedData.length) return;
             const len = parsedData.length;
@@ -933,8 +1227,14 @@
                 currentIndex = (currentIndex + dir + len) % len;
                 cnt++;
             } while (!parsedData[currentIndex].selected && cnt < len);
+
+            renderTable();
+            const activeRow = document.querySelector('.active-row');
+            if (activeRow) activeRow.scrollIntoView({ block: 'nearest' });
+
             drawPreview();
         }
+
         function updateNavDisplay() {
             if (!parsedData[currentIndex]) { document.getElementById('previewLabel').innerText = '（無資料）'; return; }
             const d = parsedData[currentIndex];
@@ -965,28 +1265,15 @@
             const style = `
                 <style>
                     html, body { margin: 0; padding: 0; background: #555; height: 100%; display: flex; justify-content: center; align-items: center; }
-                    img { 
-                        display: block; 
-                        max-width: 100%; 
-                        max-height: 100vh; 
-                        box-shadow: 0 0 20px rgba(0,0,0,0.5); 
-                        background: white;
-                    }
+                    img { display: block; max-width: 100%; max-height: 100vh; box-shadow: 0 0 20px rgba(0,0,0,0.5); background: white; }
                     @media print {
                         body { background: white; display: block; }
-                        img { 
-                            width: 100%; 
-                            height: 100vh; 
-                            object-fit: contain; 
-                            box-shadow: none; 
-                        }
+                        img { width: 100%; height: 100vh; object-fit: contain; box-shadow: none; }
                     }
                 </style>
             `;
 
-            w.document.write('<!doctype html><html><head>' + style + '</head><body>');
-            w.document.write('<img id="certImg" src="' + imgData + '">');
-            w.document.write('</body></html>');
+            w.document.write(`<!doctype html><html><head>${style}</head><body><img id="certImg" src="${imgData}"></body></html>`);
             w.document.close();
 
             const img = w.document.getElementById('certImg');
@@ -1018,36 +1305,12 @@
                 const style = `
                     <style>
                         html, body { margin: 0; padding: 0; background: #555; }
-                        .page-break { 
-                            display: flex; 
-                            justify-content: center; 
-                            align-items: center; 
-                            min-height: 100vh; 
-                            page-break-after: always; 
-                        }
-                        img.cert { 
-                            display: block; 
-                            max-width: 100%; 
-                            height: auto; 
-                            box-shadow: 0 0 10px rgba(0,0,0,0.5); 
-                            background: white;
-                            margin: 20px;
-                        }
+                        .page-break { display: flex; justify-content: center; align-items: center; min-height: 100vh; page-break-after: always; }
+                        img.cert { display: block; max-width: 100%; height: auto; box-shadow: 0 0 10px rgba(0,0,0,0.5); background: white; margin: 20px; }
                         @media print {
                             body { background: white; }
-                            .page-break { 
-                                display: block; 
-                                min-height: 0; 
-                                margin: 0; 
-                                page-break-after: always;
-                            }
-                            img.cert {
-                                margin: 0;
-                                width: 100%;
-                                height: 100vh; 
-                                object-fit: contain; 
-                                box-shadow: none;
-                            }
+                            .page-break { display: block; min-height: 0; margin: 0; page-break-after: always; }
+                            img.cert { margin: 0; width: 100%; height: 100vh; object-fit: contain; box-shadow: none; }
                         }
                     </style>
                 `;
@@ -1106,7 +1369,7 @@
                     const fullTitle = `${item.comp} ${item.cat} ${item.rank} ${item.name}`;
                     const filename = sanitizeFilename(fullTitle) + ".pdf";
                     doc.save(filename);
-                    await new Promise(r => setTimeout(r, 250));
+                    await new Promise(r => setTimeout(r, 200));
                 }
             } catch (err) {
                 console.error(err);
@@ -1116,8 +1379,6 @@
                 btn.disabled = false;
             }
         }
-
-        function clamp(v, a, b) { return Math.max(a, b ? Math.min(v, b) : v); }
 
     </script>
 </body>
